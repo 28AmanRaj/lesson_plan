@@ -46,7 +46,10 @@ def display_lesson_plan(lesson_plan):
         print(f"{section}:\n{content}\n")
 
 def graph_struct():
-    builder = StateGraph()
+    builder = StateGraph(state_schema={
+        "input": {"topic": str, "age": int},
+        "output": {"lesson_plan": dict},
+    })
 
     # Define nodes as functions
     builder.add_node("start", get_user_input)

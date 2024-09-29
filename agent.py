@@ -104,10 +104,11 @@ lesson_plan_graph = graph_struct()
 
 # Execute the graph
 def run_graph():
+    state = LessonPlanState(topic="", age=0, lesson_plan=None)  # Initialize state
+
     try:
-        topic, age = get_user_input()
-        lesson_plan = generate_lesson_plan(topic, age)
-        display_lesson_plan(lesson_plan)
+        # Execute the graph
+        lesson_plan_graph.invoke(state)  # Use the appropriate method here
     except Exception as e:
         print(f"An error occurred: {e}")
         sys.exit(1)

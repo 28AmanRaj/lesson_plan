@@ -1,16 +1,7 @@
-<<<<<<< HEAD
 {
     "dependencies": ["."],
     "graphs": {
       "agent": "./agent.py:lesson_plan"
     },
     "env": ".env"
-=======
-{
-    "dependencies": ["."],
-    "graphs": {
-      "agent": "./agent.py:lesson_plan"
-    },
-    "env": ".env"
->>>>>>> 15f2e300ad116bd1e4b2859abc6ac99bfe080c49
-  }
+}

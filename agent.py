@@ -2,16 +2,15 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from dotenv import load_dotenv
 import os
-#import langsmith
 from langgraph.graph import StateGraph, START, END
 import sys
 from typing import TypedDict, Optional
 
-# Load environment variables (if needed)
-# load_dotenv()
-# api_key = os.getenv('LANGCHAIN_API_KEY')
-# langsmith_client = langsmith.Client(api_key=api_key)
 
+"""load_dotenv()
+api_key = os.getenv('LANGCHAIN_API_KEY')
+
+langsmith_client = langsmith.Client(api_key=api_key)"""
 llm = ChatOpenAI(model="gpt-4", temperature=0.7)
 
 # Function to generate lesson plan sections
@@ -61,6 +60,7 @@ class LessonPlanState(TypedDict):
     lesson_plan: Optional[dict]  # This will hold the generated lesson plan
 
 def graph_struct():
+    print("Building lesson plan graph...")
     # Create the StateGraph with the defined TypedDict
     builder = StateGraph(LessonPlanState)
 
@@ -94,8 +94,12 @@ def graph_struct():
     builder.add_edge("generate", "output")
     builder.add_edge("output", END)
     
-    part_1_graph = builder.compile()
-    return part_1_graph
+    lesson_plan_graph = builder.compile()
+    print("Lesson plan graph built successfully.")
+    return lesson_plan_graph
+
+
+
 
 # Create the graph
 lesson_plan_graph = graph_struct()
@@ -112,4 +116,8 @@ def run_graph():
         sys.exit(1)
 
 if __name__ == "__main__":
+    load_dotenv()
+    print("API Key Loaded:", os.getenv('LANGCHAIN_API_KEY'))
     run_graph()
+
+

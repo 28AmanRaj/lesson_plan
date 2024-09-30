@@ -6,7 +6,7 @@ from langgraph.graph import StateGraph, START, END
 import sys
 from typing import TypedDict, Optional
 
-
+# Initialize the language model
 llm = ChatOpenAI(model="gpt-4", temperature=0.7)
 
 # Function to generate lesson plan sections
@@ -38,8 +38,8 @@ def get_user_input():
     while True:
         try:
             age = int(input("Enter the age of the student: "))
-            if age < 0:
-                raise ValueError("Age cannot be negative.")
+            if age <= 0:
+                raise ValueError("Age must be a positive integer.")
             break
         except ValueError as e:
             print(f"Invalid input: {e}. Please enter a valid age.")
@@ -60,13 +60,8 @@ def graph_struct():
     builder = StateGraph(LessonPlanState)
 
     def get_user_input_wrapper(state: LessonPlanState) -> LessonPlanState:
-        topic, age = get_user_input()  # Call the function to get user input
-        if not topic or age <= 0:
-            raise ValueError("Topic must be provided and age must be a positive integer.")
-        
-        state["topic"] = topic
-        state["age"] = age
-        return state  # Return updated state
+        # Simply return the state as is; user input should be collected beforehand.
+        return state
 
     def generate_wrapper(state: LessonPlanState) -> LessonPlanState:
         topic = state["topic"]
@@ -95,7 +90,11 @@ def graph_struct():
 lesson_plan_graph = graph_struct()
 
 def run_graph():
-    state = LessonPlanState(topic="", age=0, lesson_plan=None)  # Initialize state
+    # Collect user input before initializing the state
+    topic, age = get_user_input()
+    
+    # Initialize state with valid inputs
+    state = LessonPlanState(topic=topic, age=age, lesson_plan=None)
 
     try:
         # Execute the graph
@@ -104,12 +103,9 @@ def run_graph():
         print(f"An error occurred: {e}")
         sys.exit(1)
 
-
 # Initialize lesson_plan_graph in the main block
 if __name__ == "__main__":
-    load_dotenv()
-    print("API Key Loaded:", os.getenv('LANGCHAIN_API_KEY'))
+    # load_dotenv()  # Uncomment this line if you need to load environment variables
+    # print("API Key Loaded:", os.getenv('LANGCHAIN_API_KEY'))  # Uncomment to check API Key
     
-    
-
     run_graph()

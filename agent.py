@@ -7,6 +7,10 @@ import sys
 from typing import TypedDict, Optional
 
 
+"""load_dotenv()
+api_key = os.getenv('LANGCHAIN_API_KEY')
+
+langsmith_client = langsmith.Client(api_key=api_key)"""
 llm = ChatOpenAI(model="gpt-4", temperature=0.7)
 
 # Function to generate lesson plan sections
@@ -53,14 +57,20 @@ def display_lesson_plan(lesson_plan):
 class LessonPlanState(TypedDict):
     topic: str
     age: int
-    lesson_plan: Optional[dict]
+    lesson_plan: Optional[dict]  # This will hold the generated lesson plan
 
 def graph_struct():
     print("Building lesson plan graph...")
+    # Create the StateGraph with the defined TypedDict
     builder = StateGraph(LessonPlanState)
 
+    # Define wrapper functions to match the expected signature
     def get_user_input_wrapper(state: LessonPlanState) -> LessonPlanState:
-        topic, age = get_user_input()  # Call the function to get user input
+        # Get topic and age directly from state instead of user input
+        topic = state["topic"]
+        age = state["age"]
+        
+        # Ensure topic and age are provided
         if not topic or age <= 0:
             raise ValueError("Topic must be provided and age must be a positive integer.")
         
@@ -78,37 +88,43 @@ def graph_struct():
     def display_wrapper(state: LessonPlanState) -> None:
         lesson_plan = state["lesson_plan"]
         display_lesson_plan(lesson_plan)
-
+        return None  # No return value needed
+    
+    # Define nodes as functions
     builder.add_node("input", get_user_input_wrapper)
     builder.add_node("generate", generate_wrapper)
     builder.add_node("output", display_wrapper)
-
+    
+    # Define edges for control flow
     builder.add_edge(START, "input")
     builder.add_edge("input", "generate")
     builder.add_edge("generate", "output")
     builder.add_edge("output", END)
-
+    
     lesson_plan_graph = builder.compile()
     print("Lesson plan graph built successfully.")
-    return lesson_plan_graph  # Return the compiled graph
+    return lesson_plan_graph
 
-# Initialize lesson_plan_graph in the main block
+
+
+
+
+# Create the graph
+lesson_plan_graph = graph_struct()
+
+# Execute the graph
+def run_graph():
+    state = LessonPlanState(topic="", age=0, lesson_plan=None)  # Initialize state
+
+    try:
+        # Execute the graph
+        lesson_plan_graph.invoke(state)  # Use the appropriate method here
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        sys.exit(1)
+
 if __name__ == "__main__":
     load_dotenv()
     print("API Key Loaded:", os.getenv('LANGCHAIN_API_KEY'))
-    
-    # Create the graph
-    lesson_plan_graph = graph_struct()
-    
-    # Execute the graph
-    def run_graph():
-        state = LessonPlanState(topic="", age=0, lesson_plan=None)  # Initialize state
-
-        try:
-            # Execute the graph
-            lesson_plan_graph.invoke(state)  # Use the appropriate method here
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            sys.exit(1)
-
     run_graph()
+

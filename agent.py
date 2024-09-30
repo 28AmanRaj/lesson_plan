@@ -66,10 +66,17 @@ def graph_struct():
 
     # Define wrapper functions to match the expected signature
     def get_user_input_wrapper(state: LessonPlanState) -> LessonPlanState:
-        topic, age = get_user_input()  # Get user input
-        state["topic"] = topic
-        state["age"] = age
-        return state  # Return updated state
+    # Get topic and age directly from state instead of user input
+    topic = state["topic"]
+    age = state["age"]
+    
+    # Ensure topic and age are provided
+    if not topic or age <= 0:
+        raise ValueError("Topic must be provided and age must be a positive integer.")
+    
+    state["topic"] = topic
+    state["age"] = age
+    return state  # Return updated state
 
     def generate_wrapper(state: LessonPlanState) -> LessonPlanState:
         topic = state["topic"]

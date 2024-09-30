@@ -84,13 +84,13 @@ def graph_struct():
         return None  # No return value needed
     
     # Define nodes as functions
-    builder.add_node("start", get_user_input_wrapper)
+    builder.add_node("input", get_user_input_wrapper)
     builder.add_node("generate", generate_wrapper)
     builder.add_node("output", display_wrapper)
     
     # Define edges for control flow
-    builder.add_edge(START, "start")
-    builder.add_edge("start", "generate")
+    builder.add_edge(START, "input")
+    builder.add_edge("input", "generate")
     builder.add_edge("generate", "output")
     builder.add_edge("output", END)
     

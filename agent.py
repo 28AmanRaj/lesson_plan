@@ -34,12 +34,8 @@ def generate_lesson_plan(topic: str, age: int):
     return lesson_plan
 
 def get_user_input() -> tuple[str, int]:
+    topic = input("Enter the topic: ").strip()
     while True:
-        topic = input("Enter the topic: ").strip()
-        if not topic:
-            print("Topic cannot be empty. Please try again.")
-            continue
-
         try:
             age = int(input("Enter the age of the student: "))
             if age <= 0:
@@ -47,9 +43,7 @@ def get_user_input() -> tuple[str, int]:
             break
         except ValueError as e:
             print(f"Invalid input: {e}. Please enter a valid age.")
-
     return topic, age
-
 
 def display_lesson_plan(lesson_plan):
     print("\nGenerated Lesson Plan:")
@@ -67,14 +61,9 @@ def graph_struct():
     builder = StateGraph(LessonPlanState)
 
     def get_user_input_wrapper(state: LessonPlanState) -> LessonPlanState:
-        topic, age = get_user_input()  # Call the function to get user input
-        if not topic or age <= 0:
-            raise ValueError("Topic must be provided and age must be a positive integer.")
-        
+        topic, age = get_user_input()  # Get input from the user
         state["topic"] = topic
         state["age"] = age
-        return state  # Return updated state
-        # Simply return the state as is; user input should be collected beforehand.
         return state
 
     def validate_wrapper(state: LessonPlanState) -> LessonPlanState:

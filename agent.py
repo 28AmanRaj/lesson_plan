@@ -34,8 +34,12 @@ def generate_lesson_plan(topic: str, age: int):
     return lesson_plan
 
 def get_user_input() -> tuple[str, int]:
-    topic = input("Enter the topic: ").strip()
     while True:
+        topic = input("Enter the topic: ").strip()
+        if not topic:
+            print("Topic cannot be empty. Please try again.")
+            continue
+
         try:
             age = int(input("Enter the age of the student: "))
             if age <= 0:
@@ -43,7 +47,9 @@ def get_user_input() -> tuple[str, int]:
             break
         except ValueError as e:
             print(f"Invalid input: {e}. Please enter a valid age.")
+
     return topic, age
+
 
 def display_lesson_plan(lesson_plan):
     print("\nGenerated Lesson Plan:")

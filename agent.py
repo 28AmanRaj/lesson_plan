@@ -15,21 +15,31 @@ def generate_lesson_plan(topic: str, age: int):
         content=f"You are an expert teacher creating an engaging lesson plan for a {age}-year-old student about {topic}. Provide clear, concise, and age-appropriate responses."
     )
 
-    prompts = {
-        "Learning Objectives": f"What should a {age}-year-old student learn from a lesson about {topic}?",
-        "Key Vocabulary": f"List key vocabulary terms that a {age}-year-old should learn from a lesson on {topic}.",
-        "Activities": f"What are some fun, introductory activities for a {age}-year-old to introduce the topic {topic}?",
-        "Main Activities": f"Provide detailed main activities for a {age}-year-old to help them understand {topic}.",
-        "Content Summary": f"Summarize the key points of a lesson on {topic} for a {age}-year-old.",
-        "Plenary": f"How can a teacher wrap up a lesson on {topic} for a {age}-year-old student?"
-    }
+    combined_prompt = (
+        f"Generate a lesson plan for a {age}-year-old student about {topic}. "
+        f"Include the following sections: "
+        f"1. Learning Objectives: What should they learn? "
+        f"2. Key Vocabulary: List key terms to learn. "
+        f"3. Activities: Suggest fun introductory activities. "
+        f"4. Main Activities: Provide detailed activities for understanding. "
+        f"5. Content Summary: Summarize key points of the lesson. "
+        f"6. Plenary: How to wrap up the lesson."
+    )
 
-    lesson_plan = {}
+    messages = [system_message, HumanMessage(content=combined_prompt)]
+    response = llm.generate([messages])
     
-    for section, prompt in prompts.items():
-        messages = [system_message, HumanMessage(content=prompt)]
-        response = llm.generate([messages])
-        lesson_plan[section] = response.generations[0][0].text.strip()
+    # Split the response into sections
+    sections = response.generations[0][0].text.strip().split("\n\n")
+    
+    lesson_plan = {}
+    for section in sections:
+        # Ensure there's a colon to split on
+        if ":" in section:
+            title, content = section.split(":", 1)
+            lesson_plan[title.strip()] = content.strip()
+        else:
+            print(f"Warning: Skipping section due to unexpected format: {section}")
     
     return lesson_plan
 

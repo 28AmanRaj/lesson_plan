@@ -33,7 +33,7 @@ def generate_lesson_plan(topic: str, age: int):
     
     return lesson_plan
 
-def get_user_input():
+def get_user_input() -> tuple[str, int]:
     topic = input("Enter the topic: ").strip()
     while True:
         try:
@@ -61,12 +61,13 @@ def graph_struct():
     builder = StateGraph(LessonPlanState)
 
     def get_user_input_wrapper(state: LessonPlanState) -> LessonPlanState:
-        topic, age = get_user_input()
+        topic, age = get_user_input()  # Get input from the user
         state["topic"] = topic
         state["age"] = age
         return state
 
     def validate_wrapper(state: LessonPlanState) -> LessonPlanState:
+        # Validate the input
         if not state["topic"]:
             state["error_message"] = "Error: Topic cannot be empty."
         elif state["age"] <= 0:

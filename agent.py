@@ -54,51 +54,79 @@ class LessonPlanState(TypedDict):
     topic: str
     age: int
     lesson_plan: Optional[dict]
+    error_message: Optional[str]
 
 def graph_struct():
     print("Building lesson plan graph...")
     builder = StateGraph(LessonPlanState)
 
     def get_user_input_wrapper(state: LessonPlanState) -> LessonPlanState:
-        # Simply return the state as is; user input should be collected beforehand.
+        topic, age = get_user_input()
+        state["topic"] = topic
+        state["age"] = age
+        return state
+
+    def validate_wrapper(state: LessonPlanState) -> LessonPlanState:
+        if not state["topic"]:
+            state["error_message"] = "Error: Topic cannot be empty."
+        elif state["age"] <= 0:
+            state["error_message"] = "Error: Age must be a positive integer."
+        else:
+            state["error_message"] = None  # Clear any previous error messages
         return state
 
     def generate_wrapper(state: LessonPlanState) -> LessonPlanState:
+        if state.get("error_message"):
+            state["lesson_plan"] = None  # No lesson plan if there's an error
+            return state
+        
         topic = state["topic"]
         age = state["age"]
         lesson_plan = generate_lesson_plan(topic, age)
-        state["lesson_plan"] = lesson_plan
-        return state  # Return updated state
+        
+        if lesson_plan:
+            state["lesson_plan"] = lesson_plan
+            state["error_message"] = None  # Clear any error message
+        else:
+            state["lesson_plan"] = None
+            state["error_message"] = "Error: Lesson plan generation failed."
+        
+        return state
 
     def display_wrapper(state: LessonPlanState) -> None:
-        lesson_plan = state["lesson_plan"]
-        display_lesson_plan(lesson_plan)
+        if state.get("error_message"):
+            print(state["error_message"])
+        else:
+            lesson_plan = state.get("lesson_plan")
+            if lesson_plan:
+                display_lesson_plan(lesson_plan)
+            else:
+                print("No lesson plan generated.")
 
     builder.add_node("input", get_user_input_wrapper)
+    builder.add_node("validate", validate_wrapper)
     builder.add_node("generate", generate_wrapper)
     builder.add_node("output", display_wrapper)
 
     builder.add_edge(START, "input")
-    builder.add_edge("input", "generate")
+    builder.add_edge("input", "validate")
+    builder.add_edge("validate", "generate")
     builder.add_edge("generate", "output")
     builder.add_edge("output", END)
 
     lesson_plan_graph = builder.compile()
     print("Lesson plan graph built successfully.")
-    return lesson_plan_graph  # Return the compiled graph
+    return lesson_plan_graph
 
 lesson_plan_graph = graph_struct()
 
 def run_graph():
-    # Collect user input before initializing the state
-    topic, age = get_user_input()
-    
-    # Initialize state with valid inputs
-    state = LessonPlanState(topic=topic, age=age, lesson_plan=None)
+    # Initialize state with empty values
+    state = LessonPlanState(topic="", age=0, lesson_plan=None, error_message=None)
 
     try:
         # Execute the graph
-        lesson_plan_graph.invoke(state)  # Use the appropriate method here
+        lesson_plan_graph.invoke(state)
     except Exception as e:
         print(f"An error occurred: {e}")
         sys.exit(1)

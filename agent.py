@@ -61,9 +61,14 @@ def graph_struct():
     builder = StateGraph(LessonPlanState)
 
     def get_user_input_wrapper(state: LessonPlanState) -> LessonPlanState:
-        topic, age = get_user_input()  # Get input from the user
+        topic, age = get_user_input()  # Call the function to get user input
+        if not topic or age <= 0:
+            raise ValueError("Topic must be provided and age must be a positive integer.")
+        
         state["topic"] = topic
         state["age"] = age
+        return state  # Return updated state
+        # Simply return the state as is; user input should be collected beforehand.
         return state
 
     def validate_wrapper(state: LessonPlanState) -> LessonPlanState:

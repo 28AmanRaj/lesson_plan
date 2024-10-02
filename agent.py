@@ -7,7 +7,7 @@ import sys
 from typing import TypedDict, Optional
 
 # Initialize the language model
-llm = ChatOpenAI(model="gpt-4", temperature=0.7)
+llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
 
 # Function to generate lesson plan sections
 def generate_lesson_plan(topic: str, age: int):
@@ -15,46 +15,32 @@ def generate_lesson_plan(topic: str, age: int):
         content=f"You are an expert teacher creating an engaging lesson plan for a {age}-year-old student about {topic}. Provide clear, concise, and age-appropriate responses."
     )
 
-    combined_prompt = (
-        f"Generate a lesson plan for a {age}-year-old student about {topic}. "
-        f"Include the following sections: "
-        f"1. Learning Objectives: What should they learn? "
-        f"2. Key Vocabulary: List key terms to learn. "
-        f"3. Activities: Suggest fun introductory activities. "
-        f"4. Main Activities: Provide detailed activities for understanding. "
-        f"5. Content Summary: Summarize key points of the lesson. "
-        f"6. Plenary: How to wrap up the lesson."
-    )
+    prompts = {
+        "Learning Objectives": f"What should a {age}-year-old student learn from a lesson about {topic}?",
+        "Key Vocabulary": f"List key vocabulary terms that a {age}-year-old should learn from a lesson on {topic}.",
+        "Activities": f"What are some fun, introductory activities for a {age}-year-old to introduce the topic {topic}?",
+        "Content Summary": f"Summarize the key points of a lesson on {topic} for a {age}-year-old.",
+    }
 
-    messages = [system_message, HumanMessage(content=combined_prompt)]
-    response = llm.generate([messages])
-    
-    # Split the response into sections
-    sections = response.generations[0][0].text.strip().split("\n\n")
-    
     lesson_plan = {}
-    for section in sections:
-        # Ensure there's a colon to split on
-        if ":" in section:
-            title, content = section.split(":", 1)
-            lesson_plan[title.strip()] = content.strip()
-        else:
-            print(f"Warning: Skipping section due to unexpected format: {section}")
+    
+    for section, prompt in prompts.items():
+        messages = [system_message, HumanMessage(content=prompt)]
+        response = llm.generate([messages])
+        lesson_plan[section] = response.generations[0][0].text.strip()
     
     return lesson_plan
 
-def get_user_input(topic=None, age=None) -> tuple[str, int]:
-    if topic is None:
-        topic = input("Enter the topic: ").strip()
-    if age is None:
-        while True:
-            try:
-                age = int(input("Enter the age of the student: "))
-                if age <= 0:
-                    raise ValueError("Age must be a positive integer.")
-                break
-            except ValueError as e:
-                print(f"Invalid input: {e}. Please enter a valid age.")
+def get_user_input():
+    topic = input("Enter the topic: ").strip()
+    while True:
+        try:
+            age = int(input("Enter the age of the student: "))
+            if age <= 0:
+                raise ValueError("Age must be a positive integer.")
+            break
+        except ValueError as e:
+            print(f"Invalid input: {e}. Please enter a valid age.")
     return topic, age
 
 def display_lesson_plan(lesson_plan):
@@ -73,13 +59,12 @@ def graph_struct():
     builder = StateGraph(LessonPlanState)
 
     def get_user_input_wrapper(state: LessonPlanState) -> LessonPlanState:
-        topic, age = get_user_input()  # Get input from the user
+        topic, age = get_user_input()
         state["topic"] = topic
         state["age"] = age
         return state
 
     def validate_wrapper(state: LessonPlanState) -> LessonPlanState:
-        # Validate the input
         if not state["topic"]:
             state["error_message"] = "Error: Topic cannot be empty."
         elif state["age"] <= 0:
@@ -100,32 +85,22 @@ def graph_struct():
         if lesson_plan:
             state["lesson_plan"] = lesson_plan
             state["error_message"] = None  # Clear any error message
+            # Display the lesson plan here after generation
+            display_lesson_plan(lesson_plan)
         else:
             state["lesson_plan"] = None
             state["error_message"] = "Error: Lesson plan generation failed."
         
         return state
 
-    def display_wrapper(state: LessonPlanState) -> None:
-        if state.get("error_message"):
-            print(state["error_message"])
-        else:
-            lesson_plan = state.get("lesson_plan")
-            if lesson_plan:
-                display_lesson_plan(lesson_plan)
-            else:
-                print("No lesson plan generated.")
-
     builder.add_node("input", get_user_input_wrapper)
     builder.add_node("validate", validate_wrapper)
     builder.add_node("generate", generate_wrapper)
-    builder.add_node("output", display_wrapper)
 
     builder.add_edge(START, "input")
     builder.add_edge("input", "validate")
     builder.add_edge("validate", "generate")
-    builder.add_edge("generate", "output")
-    builder.add_edge("output", END)
+    builder.add_edge("generate", END)
 
     lesson_plan_graph = builder.compile()
     print("Lesson plan graph built successfully.")

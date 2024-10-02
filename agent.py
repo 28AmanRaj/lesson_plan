@@ -5,9 +5,28 @@ import os
 from langgraph.graph import StateGraph, START, END
 import sys
 from typing import TypedDict, Optional
+from tavily import TavilyClient
 
 # Initialize the language model
 llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
+load_dotenv()
+
+def fetch_youtube_link(topic: str, age: int) -> str:
+    api_key = os.getenv('TAVILY_API_KEY')
+    tavily_client = TavilyClient(api_key=api_key)
+    response = tavily_client.search(f"Suggest youtube video for a {age}-year-old student about {topic}.")
+    
+    # Filter results to ensure they contain YouTube links
+    if 'results' in response and response['results']:
+        for result in response['results']:
+            url = result.get('url', '')
+            if "youtube.com" in url or "youtu.be" in url:
+                return url  # Return the first YouTube link found
+    
+    # If no relevant YouTube link is found
+    return "No relevant YouTube video found"
+
+
 
 # Function to generate lesson plan sections
 def generate_lesson_plan(topic: str, age: int):
@@ -20,14 +39,18 @@ def generate_lesson_plan(topic: str, age: int):
         "Key Vocabulary": f"List key vocabulary terms that a {age}-year-old should learn from a lesson on {topic}.",
         "Activities": f"What are some fun, introductory activities for a {age}-year-old to introduce the topic {topic}?",
         "Content Summary": f"Summarize the key points of a lesson on {topic} for a {age}-year-old.",
+        "YouTube Link": fetch_youtube_link(topic,age)  # Call the function here to get the link
     }
 
     lesson_plan = {}
     
     for section, prompt in prompts.items():
-        messages = [system_message, HumanMessage(content=prompt)]
-        response = llm.generate([messages])
-        lesson_plan[section] = response.generations[0][0].text.strip()
+        if section == "YouTube Link":
+            lesson_plan[section] = prompt  # Directly use the fetched link
+        else:
+            messages = [system_message, HumanMessage(content=prompt)]
+            response = llm.generate([messages])
+            lesson_plan[section] = response.generations[0][0].text.strip()
     
     return lesson_plan
 

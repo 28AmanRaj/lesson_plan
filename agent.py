@@ -1,11 +1,14 @@
+# agent.py
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from dotenv import load_dotenv
 import os
-from langgraph.graph import StateGraph, START, END
 import sys
 from typing import TypedDict, Optional
 from tavily import TavilyClient
+from langgraph.graph import StateGraph, START, END
+import asyncio
+from langgraph_sdk import get_client
 
 # Initialize the language model
 llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
@@ -16,19 +19,14 @@ def fetch_youtube_link(topic: str, age: int) -> str:
     tavily_client = TavilyClient(api_key=api_key)
     response = tavily_client.search(f"Suggest youtube video for a {age}-year-old student about {topic}.")
     
-    # Filter results to ensure they contain YouTube links
     if 'results' in response and response['results']:
         for result in response['results']:
             url = result.get('url', '')
             if "youtube.com" in url or "youtu.be" in url:
                 return url  # Return the first YouTube link found
     
-    # If no relevant YouTube link is found
     return "No relevant YouTube video found"
 
-
-
-# Function to generate lesson plan sections
 def generate_lesson_plan(topic: str, age: int):
     system_message = SystemMessage(
         content=f"You are an expert teacher creating an engaging lesson plan for a {age}-year-old student about {topic}. Provide clear, concise, and age-appropriate responses."
@@ -39,32 +37,20 @@ def generate_lesson_plan(topic: str, age: int):
         "Key Vocabulary": f"List key vocabulary terms that a {age}-year-old should learn from a lesson on {topic}.",
         "Activities": f"What are some fun, introductory activities for a {age}-year-old to introduce the topic {topic}?",
         "Content Summary": f"Summarize the key points of a lesson on {topic} for a {age}-year-old.",
-        "YouTube Link": fetch_youtube_link(topic,age)  # Call the function here to get the link
+        "YouTube Link": fetch_youtube_link(topic, age)
     }
 
     lesson_plan = {}
     
     for section, prompt in prompts.items():
         if section == "YouTube Link":
-            lesson_plan[section] = prompt  # Directly use the fetched link
+            lesson_plan[section] = prompt
         else:
             messages = [system_message, HumanMessage(content=prompt)]
             response = llm.generate([messages])
             lesson_plan[section] = response.generations[0][0].text.strip()
     
     return lesson_plan
-
-def get_user_input():
-    topic = input("Enter the topic: ").strip()
-    while True:
-        try:
-            age = int(input("Enter the age of the student: "))
-            if age <= 0:
-                raise ValueError("Age must be a positive integer.")
-            break
-        except ValueError as e:
-            print(f"Invalid input: {e}. Please enter a valid age.")
-    return topic, age
 
 def display_lesson_plan(lesson_plan):
     print("\nGenerated Lesson Plan:")
@@ -81,12 +67,6 @@ def graph_struct():
     print("Building lesson plan graph...")
     builder = StateGraph(LessonPlanState)
 
-    def get_user_input_wrapper(state: LessonPlanState) -> LessonPlanState:
-        topic, age = get_user_input()
-        state["topic"] = topic
-        state["age"] = age
-        return state
-
     def validate_wrapper(state: LessonPlanState) -> LessonPlanState:
         if not state["topic"]:
             state["error_message"] = "Error: Topic cannot be empty."
@@ -98,7 +78,7 @@ def graph_struct():
 
     def generate_wrapper(state: LessonPlanState) -> LessonPlanState:
         if state.get("error_message"):
-            state["lesson_plan"] = None  # No lesson plan if there's an error
+            state["lesson_plan"] = None
             return state
         
         topic = state["topic"]
@@ -107,8 +87,7 @@ def graph_struct():
         
         if lesson_plan:
             state["lesson_plan"] = lesson_plan
-            state["error_message"] = None  # Clear any error message
-            # Display the lesson plan here after generation
+            state["error_message"] = None
             display_lesson_plan(lesson_plan)
         else:
             state["lesson_plan"] = None
@@ -116,12 +95,10 @@ def graph_struct():
         
         return state
 
-    builder.add_node("input", get_user_input_wrapper)
     builder.add_node("validate", validate_wrapper)
     builder.add_node("generate", generate_wrapper)
 
-    builder.add_edge(START, "input")
-    builder.add_edge("input", "validate")
+    builder.add_edge(START, "validate")
     builder.add_edge("validate", "generate")
     builder.add_edge("generate", END)
 
@@ -131,20 +108,62 @@ def graph_struct():
 
 lesson_plan_graph = graph_struct()
 
-def run_graph():
-    # Initialize state with empty values
-    state = LessonPlanState(topic="", age=0, lesson_plan=None, error_message=None)
+def run_graph(topic: str, age: int):
+    state = LessonPlanState(topic=topic, age=age, lesson_plan=None, error_message=None)
 
     try:
-        # Execute the graph
         lesson_plan_graph.invoke(state)
     except Exception as e:
         print(f"An error occurred: {e}")
-        sys.exit(1)
+        return None
 
-# Initialize lesson_plan_graph in the main block
-if __name__ == "__main__":
-    # load_dotenv()  # Uncomment this line if you need to load environment variables
-    # print("API Key Loaded:", os.getenv('LANGCHAIN_API_KEY'))  # Uncomment to check API Key
+async def setup_langgraph():
+    client = get_client(url=os.environ["DEPLOYMENT_URL"])
+    assistants = await client.assistants.search()
+    assistant = [a for a in assistants if not a["config"]][0]
+    return client, assistant
+
+async def create_thread(client, assistant):
+    print("Creating thread...")
+    thread = await client.threads.create()
+    print(f"Thread created: {thread['thread_id']}")
+    return thread['thread_id']
+
+async def execute_langgraph_run(client, assistant, thread_id, user_input):
+    input_data = {"messages": [{"role": "user", "content": user_input}]}
+    print(f"Sending input: {input_data}")
+
+    async for chunk in client.runs.stream(
+            thread_id,
+            assistant["assistant_id"],
+            input=input_data,
+            stream_mode="updates",
+        ):
+        if chunk.data and chunk.event != "metadata":
+            print(chunk.data)
+
+async def main():
+    client, assistant = await setup_langgraph()
+    thread_id = await create_thread(client, assistant)
     
-    run_graph()
+    while True:
+        topic = input("Please enter the topic (or type 'exit' to quit): ")
+        if topic.lower() == 'exit':
+            break
+        
+        while True:
+            try:
+                age = int(input("Please enter the age of the student: "))
+                if age <= 0:
+                    raise ValueError("Age must be a positive integer.")
+                break
+            except ValueError as e:
+                print(f"Invalid input: {e}. Please enter a valid age.")
+        
+        run_graph(topic, age)
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"An error occurred: {e}")

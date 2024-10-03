@@ -129,9 +129,8 @@ async def create_thread(client, assistant):
     print(f"Thread created: {thread['thread_id']}")
     return thread['thread_id']
 
-async def execute_langgraph_run(client, assistant, thread_id, user_input):
-    input_data = {"messages": [{"role": "user", "content": user_input}]}
-    print(f"Sending input: {input_data}")
+async def execute_langgraph_run(client, assistant, thread_id, input_data):
+    
 
     async for chunk in client.runs.stream(
             thread_id,
@@ -160,7 +159,15 @@ async def main():
             except ValueError as e:
                 print(f"Invalid input: {e}. Please enter a valid age.")
         
-        run_graph(topic, age)
+        input_data = {
+            "topic": topic,
+            "age": age
+        }
+    
+        
+         # Execute the LangGraph run with user input
+        await execute_langgraph_run(client, assistant, thread_id, input_data)
+        
 
 if __name__ == "__main__":
     try:

@@ -51,3 +51,4 @@ typing_extensions>=4.12.2
 urllib3>=2.2.3
 yarl>=1.12.1
 tavily-python
+langgraph_sdk

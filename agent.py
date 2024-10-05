@@ -1,24 +1,48 @@
-# agent.py
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from dotenv import load_dotenv
 import os
-import sys
+import logging
 from typing import TypedDict, Optional
 from tavily import TavilyClient
 from langgraph.graph import StateGraph, START, END
 import asyncio
 from langgraph_sdk import get_client
 
+# Initialize logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Load environment variables
+load_dotenv()
+
+# Initialize FastAPI app
+app = FastAPI()
+
 # Initialize the language model
 llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
-load_dotenv()
+
+# Request model for FastAPI
+class LessonPlanRequest(BaseModel):
+    topic: str
+    age: int
+
+# Response model for FastAPI
+class LessonPlanResponse(BaseModel):
+    lesson_plan: dict
+    error_message: Optional[str] = None
 
 def fetch_youtube_link(topic: str, age: int) -> str:
     api_key = os.getenv('TAVILY_API_KEY')
+    if not api_key:
+        logger.error("TAVILY_API_KEY not found in environment variables.")
+        return "API Key not found."
+
     tavily_client = TavilyClient(api_key=api_key)
     response = tavily_client.search(f"Suggest youtube video for a {age}-year-old student about {topic}.")
-    
+
     if 'results' in response and response['results']:
         for result in response['results']:
             url = result.get('url', '')
@@ -53,9 +77,9 @@ def generate_lesson_plan(topic: str, age: int):
     return lesson_plan
 
 def display_lesson_plan(lesson_plan):
-    print("\nGenerated Lesson Plan:")
+    logger.info("\nGenerated Lesson Plan:")
     for section, content in lesson_plan.items():
-        print(f"{section}:\n{content}\n")
+        logger.info(f"{section}:\n{content}\n")
 
 class LessonPlanState(TypedDict):
     topic: str
@@ -64,7 +88,7 @@ class LessonPlanState(TypedDict):
     error_message: Optional[str]
 
 def graph_struct():
-    print("Building lesson plan graph...")
+    logger.info("Building lesson plan graph...")
     builder = StateGraph(LessonPlanState)
 
     def validate_wrapper(state: LessonPlanState) -> LessonPlanState:
@@ -103,7 +127,7 @@ def graph_struct():
     builder.add_edge("generate", END)
 
     lesson_plan_graph = builder.compile()
-    print("Lesson plan graph built successfully.")
+    logger.info("Lesson plan graph built successfully.")
     return lesson_plan_graph
 
 lesson_plan_graph = graph_struct()
@@ -114,7 +138,7 @@ def run_graph(topic: str, age: int):
     try:
         lesson_plan_graph.invoke(state)
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logger.error(f"An error occurred while invoking the graph: {e}")
         return None
 
 async def setup_langgraph():
@@ -124,14 +148,12 @@ async def setup_langgraph():
     return client, assistant
 
 async def create_thread(client, assistant):
-    print("Creating thread...")
+    logger.info("Creating thread...")
     thread = await client.threads.create()
-    print(f"Thread created: {thread['thread_id']}")
+    logger.info(f"Thread created: {thread['thread_id']}")
     return thread['thread_id']
 
 async def execute_langgraph_run(client, assistant, thread_id, input_data):
-    
-
     async for chunk in client.runs.stream(
             thread_id,
             assistant["assistant_id"],
@@ -139,38 +161,35 @@ async def execute_langgraph_run(client, assistant, thread_id, input_data):
             stream_mode="updates",
         ):
         if chunk.data and chunk.event != "metadata":
-            print(chunk.data)
+            logger.info(chunk.data)
 
-async def main():
-    client, assistant = await setup_langgraph()
-    thread_id = await create_thread(client, assistant)
-    
-    while True:
-        topic = input("Please enter the topic (or type 'exit' to quit): ")
-        if topic.lower() == 'exit':
-            break
-        
-        while True:
-            try:
-                age = int(input("Please enter the age of the student: "))
-                if age <= 0:
-                    raise ValueError("Age must be a positive integer.")
-                break
-            except ValueError as e:
-                print(f"Invalid input: {e}. Please enter a valid age.")
-        
-        input_data = {
-            "topic": topic,
-            "age": age
-        }
-    
-        
-         # Execute the LangGraph run with user input
-        await execute_langgraph_run(client, assistant, thread_id, input_data)
-        
+# Root route
+@app.get("/")
+async def read_root():
+    return {"message": "Welcome to the Lesson Plan API!"}
 
-if __name__ == "__main__":
+# FastAPI Endpoint to expose the lesson plan generation as an API
+@app.post("/generate-lesson-plan/", response_model=LessonPlanResponse)
+async def generate_lesson_plan_endpoint(request: LessonPlanRequest):
+    topic = request.topic
+    age = request.age
+
+    # Call the run_graph function (or directly generate the lesson plan)
     try:
-        asyncio.run(main())
+        lesson_plan = generate_lesson_plan(topic, age)
+        
+        # Return the result as a JSON response
+        return LessonPlanResponse(lesson_plan=lesson_plan)
+    
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logger.error(f"Error generating lesson plan: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generating lesson plan: {str(e)}")
+
+# Run the FastAPI server using Uvicorn
+if __name__ == "__main__":
+    import uvicorn
+    try:
+        # Run the FastAPI app using uvicorn
+        uvicorn.run(app, host="localhost", port=8000)
+    except Exception as e:
+        logger.error(f"An error occurred while starting the server: {e}")

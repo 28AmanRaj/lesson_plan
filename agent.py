@@ -12,17 +12,17 @@ from fetchyt import fetch_youtube_link
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.7)
 load_dotenv()
 
-def generate_lesson_plan(topic: str, age: int):
+def generate_lesson_plan(topic: str, grade: int):
     system_message = SystemMessage(
-        content=f"You are an expert teacher creating an engaging lesson plan for a {age}-year-old student about {topic}. Provide clear, concise, and age-appropriate responses."
+        content=f"You are an expert teacher creating an engaging lesson plan for a {grade}th grade student about {topic}. Provide clear, concise, and age-appropriate responses."
     )
 
     prompts = {
-        "Learning Objectives": f"What should a {age}-year-old student learn from a lesson about {topic}?",
-        "Key Vocabulary": f"List key vocabulary terms that a {age}-year-old should learn from a lesson on {topic}.",
-        "Activities": f"What are some fun, introductory activities for a {age}-year-old to introduce the topic {topic}?",
-        "Content Summary": f"Summarize the key points of a lesson on {topic} for a {age}-year-old.",
-        "YouTube Link": fetch_youtube_link(topic, age)
+        "Learning Objectives": f"What should a {grade}th grade student learn from a lesson about {topic}?",
+        "Key Vocabulary": f"List key vocabulary terms that a {grade}th grade student should learn from a lesson on {topic}.",
+        "Activities": f"What are some fun, introductory activities for a {grade}th grade student to introduce the topic {topic}?",
+        "Content Summary": f"Summarize the key points of a lesson on {topic} for a {grade}th grade student",
+        "YouTube Link": fetch_youtube_link(topic, grade)
     }
 
     lesson_plan = {}

@@ -41,14 +41,14 @@ async def main():
         
         while True:
             try:
-                age = int(input("Please enter the age of the student: "))
-                if age <= 0:
-                    raise ValueError("Age must be a positive integer.")
+                grade = int(input("Please enter the age of the student: "))
+                if grade < 3 or grade > 12:
+                    raise ValueError("Age must be between 3 and 12 (inclusive).")
                 break
             except ValueError as e:
                 print(f"Invalid input: {e}. Please enter a valid age.")
         
-        run_graph(topic, age)
+        run_graph(topic, grade)
 
 if __name__ == "__main__":
     try:

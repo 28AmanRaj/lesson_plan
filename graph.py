@@ -4,7 +4,7 @@ from agent import generate_lesson_plan, display_lesson_plan
 
 class LessonPlanState(TypedDict):
     topic: str
-    age: int
+    grade: int
     lesson_plan: Optional[dict]
     error_message: Optional[str]
 
@@ -15,8 +15,8 @@ def graph_struct():
     def validate_wrapper(state: LessonPlanState) -> LessonPlanState:
         if not state["topic"]:
             state["error_message"] = "Error: Topic cannot be empty."
-        elif state["age"] <= 0:
-            state["error_message"] = "Error: Age must be a positive integer."
+        elif state["grade"] < 3 or state["grade"] > 12:
+            state["error_message"] = "Error: Age must be between 3 and 12 (inclusive)."
         else:
             state["error_message"] = None  # Clear any previous error messages
         return state
@@ -27,8 +27,8 @@ def graph_struct():
             return state
         
         topic = state["topic"]
-        age = state["age"]
-        lesson_plan = generate_lesson_plan(topic, age)
+        grade = state["grade"]
+        lesson_plan = generate_lesson_plan(topic, grade)
         
         if lesson_plan:
             state["lesson_plan"] = lesson_plan
@@ -52,8 +52,8 @@ def graph_struct():
     return lesson_plan_graph
 
 lesson_plan_graph = graph_struct()
-def run_graph(topic: str, age: int):
-    state = LessonPlanState(topic=topic, age=age, lesson_plan=None, error_message=None)
+def run_graph(topic: str, grade: int):
+    state = LessonPlanState(topic=topic, grade=grade, lesson_plan=None, error_message=None)
 
     try:
         lesson_plan_graph.invoke(state)

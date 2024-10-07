@@ -2,10 +2,10 @@ import os
 from tavily import TavilyClient
 
 
-def fetch_youtube_link(topic: str, age: int) -> str:
+def fetch_youtube_link(topic: str, grade: int) -> str:
     api_key = os.getenv('TAVILY_API_KEY')
     tavily_client = TavilyClient(api_key=api_key)
-    response = tavily_client.search(f"Suggest youtube video for a {age}-year-old student about {topic}.")
+    response = tavily_client.search(f"Suggest youtube video for a {grade}th grade student about {topic}.")
     
     if 'results' in response and response['results']:
         for result in response['results']:

@@ -1,7 +1,7 @@
 {
     "dependencies": ["."],
     "graphs": {
-      "agent": "./agent.py:lesson_plan_graph"
+      "agent": "./graph.py:lesson_plan_graph"
     },
     "env": ".env"
 }
